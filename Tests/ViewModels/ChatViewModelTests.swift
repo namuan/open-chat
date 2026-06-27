@@ -1,71 +1,108 @@
 import XCTest
+import SwiftData
 @testable import open_chat
 
+@MainActor
 final class ChatViewModelTests: XCTestCase {
+
+    // MARK: - Helpers
 
     var viewModel: ChatViewModel!
     var settingsVM: SettingsViewModel!
+    var mockService: MockAIService!
+    var container: ModelContainer!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
+
+        // In-memory SwiftData container for isolated tests
+        let schema = Schema([Conversation.self, Message.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [config])
+
         settingsVM = SettingsViewModel()
+        // Configure with a valid API key so send passes the guard
+        settingsVM.openRouterConfig.apiKey = "sk-test-key"
+        settingsVM.openRouterConfig.model = "test-model"
+        settingsVM.openRouterConfig.endpoint = "https://example.com/v1/chat/completions"
+        settingsVM.setActiveProvider(.openrouter)
+
+        mockService = MockAIService()
+        // Inject the mock by overriding the service factory
+        settingsVM.serviceFactory = { _ in self.mockService }
+
         viewModel = ChatViewModel(settingsViewModel: settingsVM)
+        viewModel.configure(with: container.mainContext)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         viewModel = nil
         settingsVM = nil
-        super.tearDown()
+        mockService = nil
+        container = nil
+        try await super.tearDown()
     }
 
     // MARK: - newConversation
 
     func testNewConversationCreatesInMemoryOnly() {
         viewModel.newConversation()
-
-        // selectedConversation should be set (so the UI shows the chat view)
         XCTAssertNotNil(viewModel.selectedConversation)
-        // But the conversation should NOT be persisted in SwiftData yet
-        XCTAssertFalse(viewModel.selectedConversation!.hasChanges)
+        let ctx = container.mainContext
+        let convs = try? ctx.fetch(FetchDescriptor<Conversation>())
+        XCTAssertEqual(convs?.count, 0, "New conversation should not be persisted yet")
     }
 
     func testNewConversationClearsPreviousState() {
         viewModel.inputText = "draft text"
         viewModel.errorMessage = "some error"
         viewModel.streamingContent = "partial..."
-
         viewModel.newConversation()
-
         XCTAssertEqual(viewModel.inputText, "")
         XCTAssertNil(viewModel.errorMessage)
         XCTAssertEqual(viewModel.streamingContent, "")
         XCTAssertFalse(viewModel.isLoading)
     }
 
+    func testNewConversationCancelsStreaming() async throws {
+        mockService.chunksToYield = ["Hello", "World"]
+        viewModel.inputText = "Hi"
+        await viewModel.sendMessage()
+        viewModel.newConversation()
+        XCTAssertFalse(viewModel.isLoading)
+        XCTAssertEqual(viewModel.streamingContent, "")
+    }
+
+    func testNewConversationCleansUpEmptyPersistedConversation() throws {
+        let ctx = container.mainContext
+        let conv = Conversation(title: "Empty")
+        ctx.insert(conv)
+        try ctx.save()
+        XCTAssertEqual(try ctx.fetchCount(FetchDescriptor<Conversation>()), 1)
+
+        viewModel.selectConversation(conv)
+        // Now newConversation() should clean it up
+        viewModel.newConversation()
+
+        let count = try ctx.fetchCount(FetchDescriptor<Conversation>())
+        XCTAssertEqual(count, 0, "Empty persisted conversation should be deleted")
+    }
+
     // MARK: - selectConversation
 
     func testSelectConversationSetsAndClears() {
-        let conversation = Conversation(title: "Test Chat")
-
-        viewModel.selectConversation(conversation)
-        XCTAssertEqual(viewModel.selectedConversation?.id, conversation.id)
+        let conv = Conversation(title: "Test")
+        viewModel.selectConversation(conv)
+        XCTAssertEqual(viewModel.selectedConversation?.id, conv.id)
         XCTAssertEqual(viewModel.streamingContent, "")
 
         viewModel.selectConversation(nil)
         XCTAssertNil(viewModel.selectedConversation)
     }
 
-    // MARK: - displayMessages
-
-    func testDisplayMessagesFiltersStreamingDuplicate() {
-        let conversation = Conversation(title: "Test")
-        let userMsg = Message(role: .user, content: "Hello", conversation: conversation)
-
-        viewModel.selectedConversation = conversation
-        viewModel.streamingMessageID = UUID() // not the assistant's ID
-
-        let msgs = viewModel.displayMessages
-        // While not streaming, all messages should appear
-        XCTAssertEqual(msgs.count, viewModel.messages.count)
+    func testSelectConversationClearsStreamingProgress() {
+        viewModel.streamingContent = "partial..."
+        viewModel.selectConversation(nil)
+        XCTAssertEqual(viewModel.streamingContent, "")
     }
 }

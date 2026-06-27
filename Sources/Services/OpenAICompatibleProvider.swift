@@ -2,8 +2,29 @@ import Foundation
 
 /// Generic OpenAI-compatible streaming provider. Used by OpenRouter, Requesty, and
 /// any other service that exposes an OpenAI-compatible chat completions endpoint.
-struct OpenAICompatibleProvider: AIServiceProtocol {
+struct OpenAICompatibleProvider: AIServiceProtocol, @unchecked Sendable {
     let providerType: AIProviderType
+    let urlSession: URLSession
+    let urlRequestBuilder: ((URL, AIProviderConfig, [ChatMessage]) -> URLRequest)?
+
+    /// Create a provider for production use.
+    /// - Parameters:
+    ///   - providerType: Which provider (OpenRouter / Requesty).
+    ///   - urlSession: Custom URLSession (default `.shared`).
+    init(providerType: AIProviderType, urlSession: URLSession = .shared) {
+        self.providerType = providerType
+        self.urlSession = urlSession
+        self.urlRequestBuilder = nil
+    }
+
+    /// Create a provider with a custom request builder (useful for tests).
+    init(providerType: AIProviderType,
+         urlSession: URLSession = .shared,
+         requestBuilder: @escaping (URL, AIProviderConfig, [ChatMessage]) -> URLRequest) {
+        self.providerType = providerType
+        self.urlSession = urlSession
+        self.urlRequestBuilder = requestBuilder
+    }
 
     func streamResponse(
         messages: [ChatMessage],
@@ -35,19 +56,24 @@ struct OpenAICompatibleProvider: AIServiceProtocol {
             throw AIError.invalidURL
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        let request: URLRequest
+        if let builder = urlRequestBuilder {
+            request = builder(url, config, messages)
+        } else {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+            let body: [String: Any] = [
+                "model": config.model,
+                "messages": messages.map { ["role": $0.role, "content": $0.content] },
+                 "stream": true
+            ]
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request = req
+        }
 
-        let body: [String: Any] = [
-            "model": config.model,
-            "messages": messages.map { ["role": $0.role, "content": $0.content] },
-            "stream": true
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        let (bytes, response) = try await urlSession.bytes(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AIError.networkError(NSError(domain: "", code: -1))

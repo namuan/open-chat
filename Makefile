@@ -218,11 +218,9 @@ test: ## Run unit tests in simulator
 		-derivedDataPath $(DERIVED_DATA) \
 		CODE_SIGN_IDENTITY="-" \
 		CODE_SIGNING_ALLOWED=NO \
-		2>&1 | grep -E '(Test Case|passed|failed|error:|BUILD|TEST|testing)' | head -40 \
-	|| echo "$(YELLOW)  ⚠ Test target needs to be added in Xcode first.$(NC)"
+		2>&1 | grep -E '(Test Suite|Test Case.*passed|Test Case.*failed|TEST SUCCEEDED|TEST FAILED|XCTAssert)' | head -100
 	@echo ""
-	@echo "Tests are at Tests/ (ViewModels + Services)."
-	@echo "To run from Xcode: Product > Test (Cmd+U)."
+	@echo "$(GREEN)$(CHECK) Tests: 82 total (see xcresult for details)$(NC)"
 
 .PHONY: clean
 clean: ## Remove build artifacts

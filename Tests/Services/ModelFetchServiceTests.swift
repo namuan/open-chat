@@ -3,118 +3,103 @@ import XCTest
 
 final class ModelFetchServiceTests: XCTestCase {
 
-    // MARK: - OpenRouter JSON parsing
+    // MARK: - OpenRouter parsing
 
-    func testParseOpenRouterFreeModel() {
+    func testParseOpenRouterFreeModelFromJSON() throws {
         let json = """
-        {
-          "data": [
-            {
-              "id": "meta-llama/llama-3.3-70b-instruct:free",
-              "name": "Meta: Llama 3.3 70B Instruct (free)",
-              "pricing": {
-                "prompt": "0",
-                "completion": "0"
-              }
-            }
-          ]
-        }
+        {"data":[{"id":"meta-llama/llama-3.3-70b-instruct:free","name":"Meta:Llama","pricing":{"prompt":"0","completion":"0"}}]}
         """
-
-        let models = parseOpenRouterJSON(json)
-        XCTAssertEqual(models.count, 1)
-        XCTAssertTrue(models[0].free)
-        XCTAssertEqual(models[0].id, "meta-llama/llama-3.3-70b-instruct:free")
-        XCTAssertEqual(models[0].name, "Meta: Llama 3.3 70B Instruct (free)")
+        let info = parseOpenRouterJSON(json).first
+        XCTAssertNotNil(info)
+        XCTAssertEqual(info?.free, true)
+        XCTAssertEqual(info?.id, "meta-llama/llama-3.3-70b-instruct:free")
     }
 
-    func testParseOpenRouterPaidModel() {
+    func testParseOpenRouterPaidModelFromJSON() throws {
         let json = """
-        {
-          "data": [
-            {
-              "id": "openai/gpt-4o",
-              "name": "OpenAI: GPT-4o",
-              "pricing": {
-                "prompt": "0.000005",
-                "completion": "0.000015"
-              }
-            }
-          ]
-        }
+        {"data":[{"id":"openai/gpt-4o","name":"OpenAI:GPT-4o","pricing":{"prompt":"0.000005","completion":"0.000015"}}]}
         """
-
-        let models = parseOpenRouterJSON(json)
-        XCTAssertEqual(models.count, 1)
-        XCTAssertFalse(models[0].free)
+        let model = parseOpenRouterJSON(json).first
+        XCTAssertNotNil(model)
+        XCTAssertEqual(model?.free, false)
     }
 
-    // MARK: - Requesty JSON parsing
+    // MARK: - Requesty parsing
 
-    func testParseRequestyFreeModel() {
+    func testParseRequestyFreeModelFromJSON() throws {
         let json = """
-        {
-          "data": [
-            {
-              "id": "google/gemma-4-31b-it",
-              "object": "model",
-              "input_price": 0,
-              "output_price": 0
-            }
-          ]
-        }
+        {"data":[{"id":"google/gemma-4-31b-it","object":"model","input_price":0,"output_price":0}]}
         """
-
-        let models = parseRequestyJSON(json)
-        XCTAssertEqual(models.count, 1)
-        XCTAssertTrue(models[0].free)
+        let model = parseRequestyJSON(json).first
+        XCTAssertNotNil(model)
+        XCTAssertEqual(model?.free, true)
     }
 
-    func testParseRequestyPaidModel() {
+    func testParseRequestyPaidModelFromJSON() throws {
         let json = """
-        {
-          "data": [
-            {
-              "id": "openai/gpt-4o",
-              "object": "model",
-              "input_price": 0.0000025,
-              "output_price": 0.00001
-            }
-          ]
-        }
+        {"data":[{"id":"openai/gpt-4o","object":"model","input_price":0.0000025,"output_price":0.00001}]}
         """
+        let model = parseRequestyJSON(json).first
+        XCTAssertNotNil(model)
+        XCTAssertEqual(model?.free, false)
+    }
 
-        let models = parseRequestyJSON(json)
-        XCTAssertEqual(models.count, 1)
-        XCTAssertFalse(models[0].free)
+    func testParseRequestyIntZeroPrice() throws {
+        let json = """
+        {"data":[{"id":"free-int","input_price":0,"output_price":0}]}
+        """
+        let model = parseRequestyJSON(json).first
+        XCTAssertNotNil(model)
+        XCTAssertEqual(model?.free, true)
     }
 
     // MARK: - Edge cases
 
-    func testParseEmptyResponse() {
-        XCTAssertEqual(parseOpenRouterJSON(#"{"data": []}"#).count, 0)
-        XCTAssertEqual(parseRequestyJSON(#"{"data": []}"#).count, 0)
+    func testParseEmptyData() {
+        XCTAssertEqual(parseOpenRouterJSON(#"{"data":[]}"#).count, 0)
+        XCTAssertEqual(parseRequestyJSON(#"{"data":[]}"#).count, 0)
     }
 
-    func testParseMissingPricing() {
-        let json = """
-        {
-          "data": [{"id": "no-pricing", "name": "No Pricing"}]
-        }
-        """
-        let models = parseOpenRouterJSON(json)
-        XCTAssertEqual(models.count, 1)
-        // Missing pricing should NOT be treated as free
-        XCTAssertFalse(models[0].free)
+    func testParseMissingPricingNotFree() {
+        let json = #"{"data":[{"id":"no-pricing","name":"NoPricing"}]}"#
+        let model = parseOpenRouterJSON(json).first
+        XCTAssertNotNil(model)
+        XCTAssertEqual(model?.free, false)
     }
 
-    // MARK: - Helpers (mimic the actual parsing logic)
+    func testParseMissingIDReturnsNil() {
+        let json = #"{"data":[{"name":"NoID"}]}"#
+        XCTAssertTrue(parseOpenRouterJSON(json).isEmpty)
+    }
+
+    func testParseMalformedJSONReturnsEmpty() {
+        XCTAssertEqual(parseOpenRouterJSON("not json").count, 0)
+        XCTAssertEqual(parseRequestyJSON("not json").count, 0)
+    }
+
+    // MARK: - ModelInfo equality
+
+    func testModelInfoEquality() {
+        let a = ModelFetchService.ModelInfo(id: "x", name: "X", free: true)
+        let b = ModelFetchService.ModelInfo(id: "x", name: "X", free: true)
+        let c = ModelFetchService.ModelInfo(id: "y", name: "Y", free: true)
+        XCTAssertEqual(a, b)
+        XCTAssertNotEqual(a, c)
+    }
+
+    func testModelInfoDisplayName() {
+        let free = ModelFetchService.ModelInfo(id: "x", name: "X", free: true)
+        let paid = ModelFetchService.ModelInfo(id: "y", name: "Y", free: false)
+        XCTAssertTrue(free.displayName.contains("free"))
+        XCTAssertFalse(paid.displayName.contains("free"))
+    }
+
+    // MARK: - Parsing helpers (mirror actual logic)
 
     private func parseOpenRouterJSON(_ json: String) -> [ModelFetchService.ModelInfo] {
-        let data = json.data(using: .utf8)!
-        let obj = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
-        let models = obj["data"] as! [[String: Any]]
-
+        guard let data = json.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let models = obj["data"] as? [[String: Any]] else { return [] }
         return models.compactMap { model in
             guard let id = model["id"] as? String else { return nil }
             let name = model["name"] as? String ?? id
@@ -127,10 +112,9 @@ final class ModelFetchServiceTests: XCTestCase {
     }
 
     private func parseRequestyJSON(_ json: String) -> [ModelFetchService.ModelInfo] {
-        let data = json.data(using: .utf8)!
-        let obj = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
-        let models = obj["data"] as! [[String: Any]]
-
+        guard let data = json.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let models = obj["data"] as? [[String: Any]] else { return [] }
         return models.compactMap { model in
             guard let id = model["id"] as? String else { return nil }
             let name = model["id"] as? String ?? id

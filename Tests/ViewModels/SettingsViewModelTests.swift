@@ -1,13 +1,13 @@
 import XCTest
 @testable import open_chat
 
+@MainActor
 final class SettingsViewModelTests: XCTestCase {
 
     var viewModel: SettingsViewModel!
 
     override func setUp() {
         super.setUp()
-        // Wipe any stored config before each test
         UserDefaults.standard.removeObject(forKey: "ai_provider_configs")
         UserDefaults.standard.removeObject(forKey: "selected_provider")
         viewModel = SettingsViewModel()
@@ -27,8 +27,14 @@ final class SettingsViewModelTests: XCTestCase {
     }
 
     func testDefaultModelIsFreeModel() {
-        let config = viewModel.config(for: .openrouter)
-        XCTAssertTrue(config.model.contains("free") || config.model.contains("gemma"))
+        let openRouterModel = viewModel.config(for: .openrouter).model
+        XCTAssertTrue(openRouterModel.contains("free") || openRouterModel.contains("gemma"),
+                      "Default OpenRouter model should be free")
+    }
+
+    func testDefaultEndpoint() {
+        XCTAssertTrue(viewModel.config(for: .openrouter).endpoint.contains("openrouter.ai"))
+        XCTAssertTrue(viewModel.config(for: .requesty).endpoint.contains("router.requesty.ai"))
     }
 
     // MARK: - hasAPIKey
@@ -39,31 +45,38 @@ final class SettingsViewModelTests: XCTestCase {
     }
 
     func testHasAPIKeyReturnsTrueWhenSet() {
-        viewModel.openRouterConfig.apiKey = "sk-test-key"
+        viewModel.openRouterConfig.apiKey = "sk-test"
         XCTAssertTrue(viewModel.hasAPIKey(for: .openrouter))
         XCTAssertFalse(viewModel.hasAPIKey(for: .requesty))
+    }
+
+    func testIsActiveProviderReady() {
+        XCTAssertFalse(viewModel.isActiveProviderReady)
+        viewModel.openRouterConfig.apiKey = "sk-test"
+        XCTAssertTrue(viewModel.isActiveProviderReady)
     }
 
     // MARK: - Auto-switch
 
     func testAutoSwitchOnKeyEntry() {
-        // Start with Requesty selected, no keys set
         viewModel.setActiveProvider(.requesty)
         XCTAssertEqual(viewModel.activeProvider, .requesty)
-
-        // Add a key to OpenRouter — should auto-switch
         viewModel.openRouterConfig.apiKey = "sk-test"
         XCTAssertEqual(viewModel.activeProvider, .openrouter)
     }
 
     func testNoAutoSwitchWhenActiveHasKey() {
-        // Set a key for OpenRouter and select it
-        viewModel.openRouterConfig.apiKey = "sk-test"
+        viewModel.openRouterConfig.apiKey = "sk-test-1"
         viewModel.setActiveProvider(.openrouter)
-
-        // Add a key to Requesty — should NOT auto-switch away from OpenRouter
         viewModel.requestyConfig.apiKey = "sk-test-2"
         XCTAssertEqual(viewModel.activeProvider, .openrouter)
+    }
+
+    func testAutoSwitchOnInitIfActiveMissingKey() {
+        viewModel.setActiveProvider(.requesty)
+        viewModel.openRouterConfig.apiKey = "sk-test"
+        let reloaded = SettingsViewModel()
+        XCTAssertEqual(reloaded.activeProvider, .openrouter)
     }
 
     // MARK: - Persistence
@@ -72,32 +85,62 @@ final class SettingsViewModelTests: XCTestCase {
         viewModel.openRouterConfig.apiKey = "sk-abc"
         viewModel.openRouterConfig.model = "test-model"
         viewModel.setActiveProvider(.openrouter)
-
-        // Simulate app relaunch by creating a new instance
-        let newVM = SettingsViewModel()
-
-        XCTAssertEqual(newVM.activeProvider, .openrouter)
-        XCTAssertTrue(newVM.hasAPIKey(for: .openrouter))
-        XCTAssertEqual(newVM.config(for: .openrouter).model, "test-model")
+        let reloaded = SettingsViewModel()
+        XCTAssertEqual(reloaded.activeProvider, .openrouter)
+        XCTAssertTrue(reloaded.hasAPIKey(for: .openrouter))
+        XCTAssertEqual(reloaded.config(for: .openrouter).model, "test-model")
     }
 
     // MARK: - Endpoint migration
 
     func testMigratesOldRequestyEndpoint() {
         viewModel.requestyConfig.endpoint = "https://api.requesty.ai/v1/chat/completions"
-        // The migration runs in init(), so save + reload to trigger it
-        // (migration is checked in load() which runs in init())
-        let key = "ai_provider_configs"
         let data = try! JSONEncoder().encode([
             "openrouter": viewModel.openRouterConfig,
             "requesty": viewModel.requestyConfig,
         ])
-        UserDefaults.standard.set(data, forKey: key)
-
+        UserDefaults.standard.set(data, forKey: "ai_provider_configs")
         let reloaded = SettingsViewModel()
-        XCTAssertEqual(
-            reloaded.config(for: .requesty).endpoint,
-            "https://router.requesty.ai/v1/chat/completions"
-        )
+        XCTAssertEqual(reloaded.config(for: .requesty).endpoint,
+                       "https://router.requesty.ai/v1/chat/completions")
+    }
+
+    func testMigratesOldOpenAIModel() {
+        viewModel.openRouterConfig.model = "openai/gpt-4o"
+        let data = try! JSONEncoder().encode([
+            "openrouter": viewModel.openRouterConfig,
+            "requesty": viewModel.requestyConfig,
+        ])
+        UserDefaults.standard.set(data, forKey: "ai_provider_configs")
+        let reloaded = SettingsViewModel()
+        XCTAssertNotEqual(reloaded.config(for: .openrouter).model, "openai/gpt-4o")
+    }
+
+    // MARK: - firstProviderWithKey
+
+    func testFirstProviderWithKeyReturnsNilWhenNoKeys() {
+        XCTAssertNil(viewModel.firstProviderWithKey)
+    }
+
+    func testFirstProviderWithKeyReturnsRightProvider() {
+        viewModel.requestyConfig.apiKey = "sk-test"
+        XCTAssertEqual(viewModel.firstProviderWithKey, .requesty)
+    }
+
+    // MARK: - Models
+
+    func testFreeModelsForCurrentProviderReturnsEmptyByDefault() {
+        XCTAssertTrue(viewModel.freeModelsForCurrentProvider.isEmpty)
+    }
+
+    func testModelsForCurrentProviderReturnsRightList() {
+        let openRouterModels = [ModelFetchService.ModelInfo(id: "a", name: "A", free: true)]
+        let requestyModels = [ModelFetchService.ModelInfo(id: "b", name: "B", free: false)]
+        viewModel.openRouterModels = openRouterModels
+        viewModel.requestyModels = requestyModels
+        XCTAssertEqual(viewModel.modelsForCurrentProvider.count, 1)
+        XCTAssertEqual(viewModel.modelsForCurrentProvider.first?.id, "a")
+        viewModel.setActiveProvider(.requesty)
+        XCTAssertEqual(viewModel.modelsForCurrentProvider.first?.id, "b")
     }
 }

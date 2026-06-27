@@ -77,8 +77,14 @@ final class SettingsViewModel {
         selectedProviderType = provider
     }
 
+    /// Factory closure for creating the AI service — can be overridden in tests.
+    var serviceFactory: ((AIProviderType) -> any AIServiceProtocol)? = nil
+
     func service(for provider: AIProviderType) -> any AIServiceProtocol {
-        OpenAICompatibleProvider(providerType: provider)
+        if let factory = serviceFactory {
+            return factory(provider)
+        }
+        return OpenAICompatibleProvider(providerType: provider)
     }
 
     // MARK: - Auto-switch
