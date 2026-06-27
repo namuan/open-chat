@@ -26,6 +26,26 @@ final class SettingsViewModel {
         }
     }
 
+    // Global system prompt
+    static let defaultSystemPrompt = """
+    You are a helpful, harmless, and honest AI assistant. \
+    Today's date is {{DATE}}. \
+    Be concise and clear in your responses. \
+    If you're unsure about something, say so rather than guessing.
+    """
+
+    var systemPrompt: String = SettingsViewModel.defaultSystemPrompt {
+        didSet { save() }
+    }
+
+    /// Returns the system prompt with {{DATE}} replaced by today's date.
+    var resolvedSystemPrompt: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        let today = formatter.string(from: Date())
+        return systemPrompt.replacingOccurrences(of: "{{DATE}}", with: today)
+    }
+
     // Model fetching
     var openRouterModels: [ModelFetchService.ModelInfo] = []
     var requestyModels: [ModelFetchService.ModelInfo] = []
@@ -149,6 +169,7 @@ final class SettingsViewModel {
             defaults.set(data, forKey: storageKey)
         }
         defaults.set(selectedProviderType.rawValue, forKey: "selected_provider")
+        defaults.set(systemPrompt, forKey: "system_prompt")
     }
 
     private func load() {
@@ -191,6 +212,9 @@ final class SettingsViewModel {
         if let raw = defaults.string(forKey: "selected_provider"),
            let provider = AIProviderType(rawValue: raw) {
             selectedProviderType = provider
+        }
+        if let savedPrompt = defaults.string(forKey: "system_prompt") {
+            systemPrompt = savedPrompt
         }
     }
 }

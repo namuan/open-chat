@@ -308,13 +308,10 @@ final class ChatViewModel {
     }
 
     private func buildChatMessages(for conversation: Conversation) -> [ChatMessage] {
-        let provider = settingsViewModel.activeProvider
-        let config = settingsViewModel.config(for: provider)
-
         var chatMessages: [ChatMessage] = []
 
-        // Inject system prompt if configured
-        let systemPrompt = config.resolvedSystemPrompt
+        // Inject global system prompt if configured
+        let systemPrompt = settingsViewModel.resolvedSystemPrompt
         if !systemPrompt.isEmpty {
             chatMessages.append(ChatMessage(role: "system", content: systemPrompt))
         }

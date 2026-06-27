@@ -52,6 +52,23 @@ struct SettingsView: View {
                 )
             }
 
+            // MARK: - System Prompt
+            Section {
+                TextEditor(text: $vm.systemPrompt)
+                    .font(.callout)
+                    .frame(minHeight: 120)
+                Text("Use {{DATE}} as a placeholder for today's date. It will be replaced automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("System Prompt")
+            } footer: {
+                if viewModel.systemPrompt.isEmpty {
+                    Text("No system prompt set. The assistant will respond without special instructions.")
+                        .foregroundStyle(.orange)
+                }
+            }
+
             // MARK: - Recently Deleted
             if let conversationsViewModel {
                 RecentlyDeletedSection(conversationsViewModel: conversationsViewModel)
@@ -141,23 +158,6 @@ struct SettingsView: View {
                 Task { await viewModel.loadModels() }
             } label: {
                 Label("Refresh models", systemImage: "arrow.clockwise")
-            }
-        }
-
-        // System Prompt
-        Section {
-            TextEditor(text: config.systemPrompt)
-                .font(.callout)
-                .frame(minHeight: 120)
-            Text("Use {{DATE}} as a placeholder for today's date. It will be replaced automatically.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        } header: {
-            Text("System Prompt")
-        } footer: {
-            if config.wrappedValue.systemPrompt.isEmpty {
-                Text("No system prompt set. The assistant will respond without special instructions.")
-                    .foregroundStyle(.orange)
             }
         }
     }
