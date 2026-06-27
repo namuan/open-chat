@@ -1,0 +1,62 @@
+# Xcode
+*.xcworkspace
+xcuserdata/
+DerivedData/
+*.xcuserstate
+*.xcbkptlist
+IDEWorkspaceChecks.plist
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Build
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.app
+ExportOptions.plist
+*.xcresult
+
+# Swift Package Manager
+.build/
+Package.resolved
+.swiftpm/
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Secrets & config
+*.xcconfig
+!Sample.xcconfig
+.env
+.env.*
+secrets/
+Config.xcconfig
+
+# Misc
+*.pm
