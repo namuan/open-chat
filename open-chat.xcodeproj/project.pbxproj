@@ -24,6 +24,7 @@
 		B1346B9FF765E4103B2F069F /* MessageBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AFFB35D49044C28A20F87C /* MessageBubbleView.swift */; };
 		BAD56B8DAB60E4B488767826 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA601D6957D9458395FFBD3 /* SettingsView.swift */; };
 		B9256B59CFE7F4358A8EEE08 /* ChatDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF620902B8B154C15BE08759 /* ChatDataStore.swift */; };
+		BB1A2C3D4E5F6A7B8C9D0E1F3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA1A2C3D4E5F6A7B8C9D0E1F2 /* Assets.xcassets */; };
 		T9C383BD8C84045CBA7985E0 /* ChatViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TD9B664A894C1499DB58870D /* ChatViewModelTests.swift */; };
 		TBA565C4FF24D479CAA60A8C /* ConversationsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T4F6C103CD84C448EA444008 /* ConversationsViewModelTests.swift */; };
 		T546892C3D45E437F9B22FA8 /* SettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8310A44CD1B440888891631 /* SettingsViewModelTests.swift */; };
@@ -36,6 +37,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AA1A2C3D4E5F6A7B8C9D0E1F2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		F7505C88564AA49BCAEAB1B0 /* OpenChatApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenChatApp.swift; sourceTree = "<group>"; };
 		FB1735EE147194105ACA1D75 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
@@ -169,14 +171,15 @@
 			path = Persistence;
 			sourceTree = "<group>";
 		};
-		A231EF20EBE884472B8FD91E /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				FEAF84F0D00474AFBB6BD8A0 /* Info.plist */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
+	A231EF20EBE884472B8FD91E /* Resources */ = {
+		isa = PBXGroup;
+		children = (
+			AA1A2C3D4E5F6A7B8C9D0E1F2 /* Assets.xcassets */,
+			FEAF84F0D00474AFBB6BD8A0 /* Info.plist */,
+		);
+		path = Resources;
+		sourceTree = "<group>";
+	};
 		T6831D3282A5F410987F3B46 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
@@ -310,13 +313,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A3059A49539B64B24A812013 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+	A3059A49539B64B24A812013 /* Resources */ = {
+		isa = PBXResourcesBuildPhase;
+		buildActionMask = 2147483647;
+		files = (
+			BB1A2C3D4E5F6A7B8C9D0E1F3 /* Assets.xcassets in Resources */,
+		);
+		runOnlyForDeploymentPostprocessing = 0;
+	};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -406,34 +410,38 @@
 		isa = XCBuildConfiguration;
 		baseConfigurationReference = A1B2C3D4E5F6A7B8C9D0E1F2 /* Local.xcconfig */;
 		buildSettings = {
+			ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+			ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 			CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Resources/Info.plist;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.namuan.openchat.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
+			CURRENT_PROJECT_VERSION = 1;
+			GENERATE_INFOPLIST_FILE = NO;
+			INFOPLIST_FILE = Resources/Info.plist;
+			MARKETING_VERSION = 1.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.namuan.openchat.app;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_EMIT_LOC_STRINGS = YES;
+			TARGETED_DEVICE_FAMILY = "1,2";
 		};
+		name = Debug;
+	};
 	A2FC6FC3038A14BF49D96CAD /* Release */ = {
 		isa = XCBuildConfiguration;
 		baseConfigurationReference = A1B2C3D4E5F6A7B8C9D0E1F2 /* Local.xcconfig */;
 		buildSettings = {
+			ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+			ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 			CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Resources/Info.plist;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.namuan.openchat.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
+			CURRENT_PROJECT_VERSION = 1;
+			GENERATE_INFOPLIST_FILE = NO;
+			INFOPLIST_FILE = Resources/Info.plist;
+			MARKETING_VERSION = 1.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.namuan.openchat.app;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_EMIT_LOC_STRINGS = YES;
+			TARGETED_DEVICE_FAMILY = "1,2";
 		};
+		name = Release;
+	};
 		T4049177733DA445F87210A0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
