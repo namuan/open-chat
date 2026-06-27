@@ -2,7 +2,7 @@ import Foundation
 
 enum AIError: LocalizedError {
     case invalidURL
-    case invalidResponse(statusCode: Int)
+    case invalidResponse(statusCode: Int, detail: String? = nil)
     case apiError(String)
     case decodingError(String)
     case networkError(Error)
@@ -13,8 +13,12 @@ enum AIError: LocalizedError {
         switch self {
         case .invalidURL:
             "Invalid API endpoint URL"
-        case .invalidResponse(let code):
-            "Server returned status code \(code)"
+        case .invalidResponse(let code, let detail):
+            if let detail, !detail.isEmpty {
+                "Server returned status code \(code): \(detail)"
+            } else {
+                "Server returned status code \(code)"
+            }
         case .apiError(let message):
             "API error: \(message)"
         case .decodingError(let detail):

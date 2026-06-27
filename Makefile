@@ -181,16 +181,20 @@ sim-build: ## Build for simulator
 	@$(call _xcode_build_nosign,Debug,iphonesimulator)
 
 .PHONY: sim-run
-sim-run: sim-build ## Build + launch in simulator
-	@echo "$(CYAN)📱 Booting simulator...$(NC)"
+sim-run: sim-build ## Build + launch in simulator (fresh: uninstalls + clears state)
+	@echo "$(CYAN)🧹 Removing previous app + clearing state...$(NC)"
 	@xcrun simctl boot '$(SIM_DEVICE)' 2>/dev/null || true
+	@xcrun simctl terminate booted "$(BUNDLE_ID)" 2>/dev/null || true
+	@xcrun simctl uninstall booted "$(BUNDLE_ID)" 2>/dev/null && \
+		echo "  $(CHECK) App uninstalled (UserDefaults + SwiftData cleared)" || \
+		echo "  $(CYAN)  ⚠ Nothing to uninstall (first run)$(NC)"
 	@open -a Simulator 2>/dev/null || true
 	@echo "$(CYAN)📲 Installing...$(NC)"
 	@xcrun simctl install booted "$(SIM_APP)"
 	@echo "$(CYAN)🚀 Launching $(BUNDLE_ID)...$(NC)"
 	@xcrun simctl launch --console-pty booted "$(BUNDLE_ID)" || \
 		xcrun simctl launch booted "$(BUNDLE_ID)"
-	@echo "$(GREEN)$(CHECK) App running in simulator$(NC)"
+	@echo "$(GREEN)$(CHECK) App running in simulator (fresh state)$(NC)"
 
 .PHONY: clean
 clean: ## Remove build artifacts
@@ -246,6 +250,25 @@ uninstall: _guard-device ## Uninstall app from device
 .PHONY: open
 open: ## Open project in Xcode (GUI fallback)
 	@open $(PROJECT) -a Xcode || echo "$(CROSS) Could not open Xcode"
+
+.PHONY: logs
+logs: ## Tail simulator logs for open-chat (Ctrl+C to stop)
+	@echo "$(CYAN)📋 Tailing logs for $(BUNDLE_ID) (Ctrl+C to stop)...$(NC)"
+	@xcrun simctl spawn booted log stream \
+		--predicate "subsystem == '$(BUNDLE_ID)' OR processImagePath CONTAINS '$(SCHEME)'" \
+		--style compact --level=debug 2>/dev/null \
+	|| xcrun simctl spawn booted log stream \
+		--predicate "process == '$(SCHEME)'" \
+		--style compact 2>/dev/null \
+	|| echo "$(CROSS) Could not start log stream. Is the simulator running?"
+
+.PHONY: logs-last
+logs-last: ## Show the last 1 minute of simulator logs for open-chat
+	@echo "$(CYAN)📋 Recent logs for $(BUNDLE_ID):$(NC)"
+	@xcrun simctl spawn booted log show \
+		--predicate "process == '$(SCHEME)'" \
+		--last 1m --style compact 2>/dev/null | head -50 \
+	|| echo "$(CROSS) Could not read logs. Is the simulator running?"
 
 .PHONY: ipa
 ipa: _guard-team build ## Export .ipa for sideloading

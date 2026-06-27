@@ -54,11 +54,14 @@ struct OpenAICompatibleProvider: AIServiceProtocol {
         }
 
         guard httpResponse.statusCode == 200 else {
+            // Read the error body so we can show the server's actual reason
             var errorBody = ""
             for try await byte in bytes {
                 errorBody += String(UnicodeScalar(byte))
             }
-            throw AIError.invalidResponse(statusCode: httpResponse.statusCode)
+            // Try to extract the human message from a JSON error response
+            let detail = parseErrorMessage(errorBody) ?? errorBody.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw AIError.invalidResponse(statusCode: httpResponse.statusCode, detail: detail)
         }
 
         // Parse SSE stream (OpenAI-compatible format)
@@ -88,5 +91,19 @@ struct OpenAICompatibleProvider: AIServiceProtocol {
                 }
             }
         }
+    }
+
+    /// Extracts a human-readable message from a JSON error response body.
+    /// Handles OpenAI/OpenRouter/Requesty format: `{"error": {"message": "...", "type": "..."}}`.
+    private func parseErrorMessage(_ body: String) -> String? {
+        guard let data = body.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let error = json["error"] as? [String: Any] else {
+            return nil
+        }
+        if let message = error["message"] as? String, !message.isEmpty {
+            return message
+        }
+        return error["type"] as? String
     }
 }

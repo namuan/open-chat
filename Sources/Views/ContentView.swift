@@ -30,16 +30,16 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear {
-            // Re-initialize chatViewModel with the actual settingsViewModel
-            chatViewModel = ChatViewModel(settingsViewModel: settingsViewModel)
+        .task {
+            // Wire up the view model with the environment-injected settingsViewModel
+            // and the SwiftData context. Runs once per view lifetime.
+            chatViewModel.settingsViewModel = settingsViewModel
             chatViewModel.configure(with: modelContext)
             conversationsViewModel.configure(with: modelContext)
         }
         .onChange(of: chatViewModel.selectedConversation) { _, _ in
             conversationsViewModel.fetchConversations()
         }
-        // Settings sheet is triggered from ConversationsListView toolbar
     }
 }
 
