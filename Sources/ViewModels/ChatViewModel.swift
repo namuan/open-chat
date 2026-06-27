@@ -266,7 +266,7 @@ final class ChatViewModel {
         if selectedConversation?.id == conversation.id {
             selectedConversation = nil
         }
-        context.delete(conversation)
+        conversation.softDelete()
         try? context.save()
     }
 

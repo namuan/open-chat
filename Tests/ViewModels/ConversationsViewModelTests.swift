@@ -97,4 +97,124 @@ final class ConversationsViewModelTests: XCTestCase {
         newVM.configure(with: ctx)
         XCTAssertEqual(newVM.conversations.count, 1)
     }
+
+    // MARK: - Soft Delete
+
+    func testFetchConversationsExcludesDeleted() throws {
+        let ctx = container.mainContext
+        let visible = Conversation(title: "Visible")
+        let deleted = Conversation(title: "Deleted")
+        ctx.insert(visible)
+        ctx.insert(deleted)
+        try ctx.save()
+        // Soft-delete after insert so SwiftData tracks the change
+        deleted.softDelete()
+        try ctx.save()
+        viewModel.fetchConversations()
+        XCTAssertEqual(viewModel.conversations.count, 1)
+        XCTAssertEqual(viewModel.conversations.first?.title, "Visible")
+    }
+
+    func testFetchDeletedConversationsReturnsOnlyDeleted() throws {
+        let ctx = container.mainContext
+        let visible = Conversation(title: "Visible")
+        let deleted = Conversation(title: "Deleted")
+        ctx.insert(visible)
+        ctx.insert(deleted)
+        try ctx.save()
+        deleted.softDelete()
+        try ctx.save()
+        viewModel.fetchConversations()
+        XCTAssertEqual(viewModel.deletedConversations.count, 1)
+        XCTAssertEqual(viewModel.deletedConversations.first?.title, "Deleted")
+    }
+
+    func testSoftDeleteConversationMarksAsDeleted() throws {
+        let ctx = container.mainContext
+        let conv = Conversation(title: "To Delete")
+        ctx.insert(conv)
+        try ctx.save()
+        viewModel.fetchConversations()
+        XCTAssertEqual(viewModel.conversations.count, 1)
+        viewModel.softDeleteConversation(conv)
+        XCTAssertEqual(viewModel.conversations.count, 0)
+        XCTAssertTrue(conv.softDeleted)
+        XCTAssertNotNil(conv.deletedAt)
+    }
+
+    func testRestoreConversationRestoresToMainList() throws {
+        let ctx = container.mainContext
+        let conv = Conversation(title: "To Restore")
+        ctx.insert(conv)
+        try ctx.save()
+        conv.softDelete()
+        try ctx.save()
+        viewModel.fetchConversations()
+        XCTAssertEqual(viewModel.conversations.count, 0)
+        XCTAssertEqual(viewModel.deletedConversations.count, 1)
+        viewModel.restoreConversation(conv)
+        XCTAssertEqual(viewModel.conversations.count, 1)
+        XCTAssertEqual(viewModel.deletedConversations.count, 0)
+        XCTAssertFalse(conv.softDeleted)
+    }
+
+    func testPermanentDeleteConversationRemovesFromStore() throws {
+        let ctx = container.mainContext
+        let conv = Conversation(title: "Permanent Delete")
+        ctx.insert(conv)
+        try ctx.save()
+        conv.softDelete()
+        try ctx.save()
+        viewModel.fetchConversations()
+        XCTAssertEqual(viewModel.deletedConversations.count, 1)
+        viewModel.permanentDeleteConversation(conv)
+        XCTAssertEqual(viewModel.deletedConversations.count, 0)
+        XCTAssertEqual(try ctx.fetchCount(FetchDescriptor<Conversation>()), 0)
+    }
+
+    func testPurgeExpiredConversationsRemovesOldOnes() throws {
+        let ctx = container.mainContext
+        let expired = Conversation(title: "Expired")
+        ctx.insert(expired)
+        try ctx.save()
+        expired.softDelete()
+        expired.deletedAt = Calendar.current.date(byAdding: .day, value: -31, to: Date())
+        try ctx.save()
+        viewModel.fetchConversations()
+        XCTAssertEqual(viewModel.deletedConversations.count, 1)
+        viewModel.purgeExpiredConversations()
+        XCTAssertEqual(viewModel.deletedConversations.count, 0)
+        XCTAssertEqual(try ctx.fetchCount(FetchDescriptor<Conversation>()), 0)
+    }
+
+    func testPurgeExpiredConversationsKeepsRecentOnes() throws {
+        let ctx = container.mainContext
+        let recent = Conversation(title: "Recent")
+        ctx.insert(recent)
+        try ctx.save()
+        recent.softDelete()
+        // deletedAt is now, so not expired
+        try ctx.save()
+        viewModel.fetchConversations()
+        XCTAssertEqual(viewModel.deletedConversations.count, 1)
+        viewModel.purgeExpiredConversations()
+        XCTAssertEqual(viewModel.deletedConversations.count, 1)
+    }
+
+    func testPurgeAllDeletedConversationsRemovesAll() throws {
+        let ctx = container.mainContext
+        let conv1 = Conversation(title: "Deleted 1")
+        let conv2 = Conversation(title: "Deleted 2")
+        ctx.insert(conv1)
+        ctx.insert(conv2)
+        try ctx.save()
+        conv1.softDelete()
+        conv2.softDelete()
+        try ctx.save()
+        viewModel.fetchConversations()
+        XCTAssertEqual(viewModel.deletedConversations.count, 2)
+        viewModel.purgeAllDeletedConversations()
+        XCTAssertEqual(viewModel.deletedConversations.count, 0)
+        XCTAssertEqual(try ctx.fetchCount(FetchDescriptor<Conversation>()), 0)
+    }
 }

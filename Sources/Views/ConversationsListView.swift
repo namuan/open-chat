@@ -45,7 +45,7 @@ struct ConversationsListView: View {
                             .tag(conversation.id)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
-                                conversationsViewModel.deleteConversation(conversation)
+                                conversationsViewModel.softDeleteConversation(conversation)
                                 chatViewModel.deleteConversation(conversation)
                             } label: {
                                 Label("Delete", systemImage: "trash")
@@ -68,7 +68,7 @@ struct ConversationsListView: View {
         }
         .sheet(isPresented: $showingSettings) {
             NavigationStack {
-                SettingsView()
+                SettingsView(conversationsViewModel: conversationsViewModel)
             }
         }
         .onChange(of: selectedConversationID) { _, newID in

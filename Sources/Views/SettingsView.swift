@@ -4,6 +4,8 @@ struct SettingsView: View {
     @Environment(SettingsViewModel.self) private var viewModel
     @Environment(\.dismiss) private var dismiss
 
+    var conversationsViewModel: ConversationsViewModel?
+
     var body: some View {
         @Bindable var vm = viewModel
 
@@ -48,6 +50,11 @@ struct SettingsView: View {
                     models: vm.requestyModels,
                     freeOnly: true
                 )
+            }
+
+            // MARK: - Recently Deleted
+            if let conversationsViewModel {
+                RecentlyDeletedSection(conversationsViewModel: conversationsViewModel)
             }
 
             // MARK: - About
@@ -238,5 +245,127 @@ struct APIKeyField: View {
     NavigationStack {
         SettingsView()
             .environment(SettingsViewModel())
+    }
+}
+
+// MARK: - Recently Deleted Section
+
+struct RecentlyDeletedSection: View {
+    @Bindable var conversationsViewModel: ConversationsViewModel
+    @State private var showingPurgeAllConfirmation = false
+    @State private var conversationToDeletePermanently: Conversation?
+
+    var body: some View {
+        Section("Recently Deleted") {
+            if conversationsViewModel.deletedConversations.isEmpty {
+                Text("No deleted conversations")
+                    .foregroundStyle(.secondary)
+                    .font(.callout)
+            } else {
+                ForEach(conversationsViewModel.deletedConversations) { conversation in
+                    DeletedConversationRow(
+                        conversation: conversation,
+                        onRestore: {
+                            conversationsViewModel.restoreConversation(conversation)
+                        },
+                        onDeleteForever: {
+                            conversationToDeletePermanently = conversation
+                        }
+                    )
+                }
+
+                Button(role: .destructive) {
+                    showingPurgeAllConfirmation = true
+                } label: {
+                    Label("Purge All Deleted", systemImage: "trash")
+                }
+            }
+        }
+        .alert("Delete Forever?", isPresented: $showingPurgeAllConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete All", role: .destructive) {
+                conversationsViewModel.purgeAllDeletedConversations()
+            }
+        } message: {
+            Text("This will permanently delete all conversations in the trash. This action cannot be undone.")
+        }
+        .alert("Delete Forever?", isPresented: Binding(
+            get: { conversationToDeletePermanently != nil },
+            set: { if !$0 { conversationToDeletePermanently = nil } }
+        )) {
+            Button("Cancel", role: .cancel) {
+                conversationToDeletePermanently = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let conv = conversationToDeletePermanently {
+                    conversationsViewModel.permanentDeleteConversation(conv)
+                    conversationToDeletePermanently = nil
+                }
+            }
+        } message: {
+            Text("This will permanently delete this conversation. This action cannot be undone.")
+        }
+    }
+}
+
+// MARK: - Deleted Conversation Row
+
+struct DeletedConversationRow: View {
+    let conversation: Conversation
+    let onRestore: () -> Void
+    let onDeleteForever: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(conversation.title)
+                    .font(.headline)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Menu {
+                    Button {
+                        onRestore()
+                    } label: {
+                        Label("Restore", systemImage: "arrow.counterclockwise")
+                    }
+
+                    Button(role: .destructive) {
+                        onDeleteForever()
+                    } label: {
+                        Label("Delete Forever", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack(spacing: 4) {
+                Image(systemName: "clock")
+                    .font(.caption2)
+                Text(deletionInfoText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var deletionInfoText: String {
+        guard let deletedAt = conversation.deletedAt else {
+            return "Recently deleted"
+        }
+        let daysSince = Calendar.current.dateComponents([.day], from: deletedAt, to: Date()).day ?? 0
+        let daysRemaining = max(30 - daysSince, 0)
+
+        if daysRemaining <= 0 {
+            return "Expires soon"
+        } else if daysRemaining == 1 {
+            return "Expires tomorrow"
+        } else {
+            return "Expires in \(daysRemaining) days"
+        }
     }
 }

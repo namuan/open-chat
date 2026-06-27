@@ -36,6 +36,9 @@ struct ContentView: View {
             chatViewModel.settingsViewModel = settingsViewModel
             chatViewModel.configure(with: modelContext)
             conversationsViewModel.configure(with: modelContext)
+
+            // Purge conversations that were soft-deleted more than 30 days ago
+            conversationsViewModel.purgeExpiredConversations()
         }
         .onChange(of: chatViewModel.selectedConversation) { _, _ in
             conversationsViewModel.fetchConversations()

@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import open_chat
 
 final class ConversationModelTests: XCTestCase {
@@ -53,6 +54,95 @@ final class ConversationModelTests: XCTestCase {
         let conv = Conversation()
         conv.messages.append(Message(role: .user, content: "line1\nline2", conversation: conv))
         XCTAssertEqual(conv.lastMessagePreview, "line1 line2")
+    }
+
+    // MARK: - Soft Delete
+
+    func testConversationDefaultsToNotDeleted() {
+        let conv = Conversation()
+        XCTAssertFalse(conv.softDeleted)
+        XCTAssertNil(conv.deletedAt)
+    }
+
+    func testSoftDeleteSetsIsDeletedAndDeletedAt() {
+        let conv = Conversation()
+        conv.softDelete()
+        XCTAssertTrue(conv.softDeleted)
+        XCTAssertNotNil(conv.deletedAt)
+    }
+
+    func testRestoreClearsIsDeletedAndDeletedAt() {
+        let conv = Conversation()
+        conv.softDelete()
+        conv.restore()
+        XCTAssertFalse(conv.softDeleted)
+        XCTAssertNil(conv.deletedAt)
+    }
+
+    func testIsExpiredReturnsFalseWhenNotDeleted() {
+        let conv = Conversation()
+        XCTAssertFalse(conv.isExpired)
+    }
+
+    func testIsExpiredReturnsFalseWhenDeletedLessThan30DaysAgo() {
+        let conv = Conversation()
+        conv.softDelete()
+        // deletedAt is now, so not expired
+        XCTAssertFalse(conv.isExpired)
+    }
+
+    func testIsExpiredReturnsTrueWhenDeletedMoreThan30DaysAgo() {
+        let conv = Conversation()
+        conv.softDelete()
+        // Set deletedAt to 31 days ago
+        conv.deletedAt = Calendar.current.date(byAdding: .day, value: -31, to: Date())
+        XCTAssertTrue(conv.isExpired)
+    }
+
+    func testDaysUntilPermanentDeletionCalculatesCorrectly() {
+        let conv = Conversation()
+        // Not deleted — should be nil
+        XCTAssertNil(conv.daysUntilPermanentDeletion)
+
+        // Soft delete — should be 30
+        conv.softDelete()
+        XCTAssertEqual(conv.daysUntilPermanentDeletion, 30)
+
+        // Deleted 15 days ago — should be 15
+        conv.deletedAt = Calendar.current.date(byAdding: .day, value: -15, to: Date())
+        XCTAssertEqual(conv.daysUntilPermanentDeletion, 15)
+
+        // Deleted 30 days ago — should be 0 (expired)
+        conv.deletedAt = Calendar.current.date(byAdding: .day, value: -30, to: Date())
+        XCTAssertEqual(conv.daysUntilPermanentDeletion, 0)
+
+        // Deleted 31 days ago — should be 0 (expired)
+        conv.deletedAt = Calendar.current.date(byAdding: .day, value: -31, to: Date())
+        XCTAssertEqual(conv.daysUntilPermanentDeletion, 0)
+    }
+
+    // MARK: - SwiftData Persistence
+
+    @MainActor
+    func testSoftDeletedPropertyPersistsAfterSave() throws {
+        let schema = Schema([Conversation.self, Message.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let ctx = container.mainContext
+
+        let conv = Conversation(title: "Persist Test")
+        ctx.insert(conv)
+        try ctx.save()
+
+        conv.softDelete()
+        try ctx.save()
+
+        // Fetch fresh from store
+        let descriptor = FetchDescriptor<Conversation>()
+        let all = try ctx.fetch(descriptor)
+        XCTAssertEqual(all.count, 1)
+        XCTAssertTrue(all.first!.softDeleted, "softDeleted should persist after save and fetch")
+        XCTAssertNotNil(all.first!.deletedAt)
     }
 }
 
