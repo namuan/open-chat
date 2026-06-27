@@ -105,4 +105,76 @@ final class ChatViewModelTests: XCTestCase {
         viewModel.selectConversation(nil)
         XCTAssertEqual(viewModel.streamingContent, "")
     }
+
+    // MARK: - Navigation round-trip preserves messages
+
+    func testMessagesSurviveNavigateAwayAndComeBack() throws {
+        // Simulate being in a chat with existing messages
+        let ctx = container.mainContext
+        let conv = Conversation(title: "Test")
+        ctx.insert(conv)
+        let msg1 = Message(role: .user, content: "Hello", conversation: conv)
+        ctx.insert(msg1)
+        try ctx.save()
+        viewModel.selectConversation(conv)
+
+        XCTAssertEqual(viewModel.messages.count, 1)
+        XCTAssertEqual(viewModel.messages.first?.content, "Hello")
+
+        // Navigate away (Back button)
+        viewModel.selectConversation(nil)
+        XCTAssertNil(viewModel.selectedConversation)
+
+        // Navigate back — re-select from a fresh fetch (simulating the
+        // ConversationsListView lookup on a freshly-fetched list)
+        let fetchedConversation = try XCTUnwrap(
+            ctx.fetch(FetchDescriptor<Conversation>()).first
+        )
+        viewModel.selectConversation(fetchedConversation)
+
+        // The messages should still be there
+        XCTAssertEqual(
+            viewModel.messages.count, 1,
+            "Messages lost after navigate-away-then-come-back"
+        )
+        XCTAssertEqual(viewModel.messages.first?.content, "Hello")
+    }
+
+    // MARK: - Streaming survives navigation away
+
+    func testStreamingContentNotClearedOnNavigateAway() throws {
+        // GIVEN a conversation mid-stream
+        let conv = Conversation(title: "Test")
+        viewModel.selectConversation(conv)
+        viewModel.isLoading = true
+        viewModel.streamingContent = "Hello"
+        let streamingID = UUID()
+        viewModel.streamingMessageID = streamingID
+
+        // WHEN user presses Back
+        viewModel.selectConversation(nil)
+
+        // THEN streaming content must survive
+        XCTAssertEqual(viewModel.streamingContent, "Hello",
+            "streamingContent cleared on Back — next chunk overwrites saved message")
+        XCTAssertNotNil(viewModel.streamingMessageID,
+            "streamingMessageID cleared — duplicate-fix broken")
+    }
+
+    func testStreamingContentNotClearedWhenComingBack() throws {
+        // GIVEN a conversation mid-stream
+        let conv = Conversation(title: "Test")
+        viewModel.selectConversation(conv)
+        viewModel.isLoading = true
+        viewModel.streamingContent = "Hello"
+        viewModel.streamingMessageID = UUID()
+
+        // WHEN user navigates back in (re-selects the same conversation)
+        // while the stream is still running
+        viewModel.selectConversation(conv)
+
+        // THEN streaming content must survive
+        XCTAssertEqual(viewModel.streamingContent, "Hello",
+            "streamingContent cleared on re-entry — next chunk overwrites saved message")
+    }
 }

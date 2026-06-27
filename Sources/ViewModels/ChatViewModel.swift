@@ -27,20 +27,30 @@ final class ChatViewModel {
     }
 
     func selectConversation(_ conversation: Conversation?) {
-        // Clean up the previous conversation if it was persisted but never
-        // had any messages — empty chats don't need to stay in the sidebar.
-        if conversationIsPersisted,
-           selectedConversation?.id != conversation?.id,
-           let prev = selectedConversation,
-           prev.messages.isEmpty {
-            modelContext?.delete(prev)
-            try? modelContext?.save()
+        deleteEmptyPreviousConversation(whenSelecting: conversation)
+
+        // NEVER clear streaming content while a stream is active.
+        // The async Task in sendMessage() is still accumulating tokens;
+        // clearing here would cause the next chunk to overwrite the
+        // saved assistant message with only the post-navigation text.
+        if !isLoading {
+            streamingContent = ""
         }
 
         selectedConversation = conversation
         conversationIsPersisted = conversation != nil
-        streamingContent = ""
         errorMessage = nil
+    }
+
+    /// If the previous conversation was persisted but never got any
+    /// messages, delete it.  Empty chats shouldn't clutter the sidebar.
+    private func deleteEmptyPreviousConversation(whenSelecting next: Conversation?) {
+        guard conversationIsPersisted,
+              selectedConversation?.id != next?.id,
+              let prev = selectedConversation,
+              prev.messages.isEmpty else { return }
+        modelContext?.delete(prev)
+        try? modelContext?.save()
     }
 
     var messages: [Message] {

@@ -8,7 +8,7 @@ final class SettingsViewModel {
         didSet {
             guard oldValue != selectedProviderType else { return }
             save()
-            loadModelsIfNeeded()
+            if isReady { loadModelsIfNeeded() }
         }
     }
     var openRouterConfig: AIProviderConfig = .default(for: .openrouter) {
@@ -34,6 +34,7 @@ final class SettingsViewModel {
 
     private let defaults = UserDefaults.standard
     private let storageKey = "ai_provider_configs"
+    private var isReady = false  // becomes true after init() — prevents network during init
 
     init() {
         load()
@@ -45,6 +46,7 @@ final class SettingsViewModel {
                 selectedProviderType = .requesty
             }
         }
+        isReady = true
     }
 
     // MARK: - Provider accessors
