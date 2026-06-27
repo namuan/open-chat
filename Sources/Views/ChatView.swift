@@ -3,7 +3,6 @@ import SwiftData
 
 struct ChatView: View {
     @Bindable var viewModel: ChatViewModel
-    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -72,10 +71,13 @@ struct ChatView: View {
                 )
             }
 
-            // Input bar
+            // Input bar — ChatInputBar owns its own @FocusState and
+            // observes the ViewModel's focusRequestCount to know when
+            // to focus. This avoids the broken FocusState binding
+            // across NavigationSplitView view recreation.
             ChatInputBar(
                 text: $viewModel.inputText,
-                isFocused: $isInputFocused,
+                focusRequestCount: viewModel.focusRequestCount,
                 isLoading: viewModel.isLoading,
                 onSend: {
                     Task { await viewModel.sendMessage() }
@@ -94,10 +96,6 @@ struct ChatView: View {
                 }
             }
         }
-        .onChange(of: viewModel.focusRequestCount) { _, _ in
-            isInputFocused = true
-        }
-        .onAppear { isInputFocused = true }
     }
 }
 
@@ -105,10 +103,12 @@ struct ChatView: View {
 
 struct ChatInputBar: View {
     @Binding var text: String
-    var isFocused: FocusState<Bool>.Binding
+    var focusRequestCount: Int
     var isLoading: Bool
     var onSend: () -> Void
     var onStop: () -> Void
+
+    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -116,7 +116,7 @@ struct ChatInputBar: View {
             HStack(alignment: .bottom, spacing: 8) {
                 TextField("Message...", text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .focused(isFocused)
+                    .focused($isInputFocused)
                     .lineLimit(1...6)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -153,6 +153,12 @@ struct ChatInputBar: View {
             .padding(.vertical, 8)
         }
         .background(.bar)
+        .onChange(of: focusRequestCount) { _, _ in
+            isInputFocused = true
+        }
+        .onAppear {
+            isInputFocused = true
+        }
     }
 }
 
