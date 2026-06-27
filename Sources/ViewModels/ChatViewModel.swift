@@ -308,11 +308,26 @@ final class ChatViewModel {
     }
 
     private func buildChatMessages(for conversation: Conversation) -> [ChatMessage] {
-        conversation.sortedMessages.map { msg in
+        let provider = settingsViewModel.activeProvider
+        let config = settingsViewModel.config(for: provider)
+
+        var chatMessages: [ChatMessage] = []
+
+        // Inject system prompt if configured
+        let systemPrompt = config.resolvedSystemPrompt
+        if !systemPrompt.isEmpty {
+            chatMessages.append(ChatMessage(role: "system", content: systemPrompt))
+        }
+
+        // Add conversation history
+        let historyMessages = conversation.sortedMessages.map { msg in
             ChatMessage(
                 role: msg.role == .assistant ? "assistant" : msg.role == .system ? "system" : "user",
                 content: msg.content
             )
         }
+        chatMessages.append(contentsOf: historyMessages)
+
+        return chatMessages
     }
 }
