@@ -14,6 +14,7 @@ final class ChatViewModel {
     private var modelContext: ModelContext?
     var settingsViewModel: SettingsViewModel
     private var streamTask: Task<Void, Never>?
+    private var conversationIsPersisted = false
 
     init(settingsViewModel: SettingsViewModel? = nil) {
         // SettingsViewModel is injected after init from the environment in ContentView
@@ -26,7 +27,18 @@ final class ChatViewModel {
     }
 
     func selectConversation(_ conversation: Conversation?) {
+        // Clean up the previous conversation if it was persisted but never
+        // had any messages — empty chats don't need to stay in the sidebar.
+        if conversationIsPersisted,
+           selectedConversation?.id != conversation?.id,
+           let prev = selectedConversation,
+           prev.messages.isEmpty {
+            modelContext?.delete(prev)
+            try? modelContext?.save()
+        }
+
         selectedConversation = conversation
+        conversationIsPersisted = conversation != nil
         streamingContent = ""
         errorMessage = nil
     }
@@ -82,7 +94,14 @@ final class ChatViewModel {
         if selectedConversation == nil {
             let newConversation = Conversation(title: String(text.prefix(40)))
             context.insert(newConversation)
+            conversationIsPersisted = true
             selectedConversation = newConversation
+        }
+
+        // Persist the conversation on first message if it's not yet in SwiftData
+        if !conversationIsPersisted, let conv = selectedConversation {
+            context.insert(conv)
+            conversationIsPersisted = true
         }
 
         guard let conversation = selectedConversation else {
@@ -165,14 +184,15 @@ final class ChatViewModel {
         errorMessage = nil
         inputText = ""
 
-        guard let context = modelContext else {
-            selectedConversation = nil
-            return
+        // If the previous conversation was persisted but has no messages,
+        // delete it from SwiftData — empty chats shouldn't stick around.
+        if conversationIsPersisted, let prev = selectedConversation, prev.messages.isEmpty {
+            modelContext?.delete(prev)
+            try? modelContext?.save()
         }
 
+        conversationIsPersisted = false
         let newConv = Conversation(title: "New Chat")
-        context.insert(newConv)
-        try? context.save()
         selectedConversation = newConv
     }
 

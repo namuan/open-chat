@@ -196,6 +196,34 @@ sim-run: sim-build ## Build + launch in simulator (fresh: uninstalls + clears st
 		xcrun simctl launch booted "$(BUNDLE_ID)"
 	@echo "$(GREEN)$(CHECK) App running in simulator (fresh state)$(NC)"
 
+.PHONY: sim-build-update
+sim-build-update: sim-build ## Build + install (preserves DB + state)
+	@xcrun simctl boot '$(SIM_DEVICE)' 2>/dev/null || true
+	@echo "$(CYAN)📲 Installing (state preserved)...$(NC)"
+	@xcrun simctl install booted "$(SIM_APP)"
+	@echo "$(GREEN)$(CHECK) App updated — database and settings preserved$(NC)"
+
+# ───────────────────────────────────────────────────────────────
+##@ Testing
+# ───────────────────────────────────────────────────────────────
+
+.PHONY: test
+test: ## Run unit tests in simulator
+	@echo "$(CYAN)🧪 Running tests...$(NC)"
+	@xcrun simctl boot '$(SIM_DEVICE)' 2>/dev/null || true
+	@xcodebuild test \
+		-project $(PROJECT) \
+		-scheme open-chatTests \
+		-destination '$(SIM_DEST)' \
+		-derivedDataPath $(DERIVED_DATA) \
+		CODE_SIGN_IDENTITY="-" \
+		CODE_SIGNING_ALLOWED=NO \
+		2>&1 | grep -E '(Test Case|passed|failed|error:|BUILD|TEST|testing)' | head -40 \
+	|| echo "$(YELLOW)  ⚠ Test target needs to be added in Xcode first.$(NC)"
+	@echo ""
+	@echo "Tests are at Tests/ (ViewModels + Services)."
+	@echo "To run from Xcode: Product > Test (Cmd+U)."
+
 .PHONY: clean
 clean: ## Remove build artifacts
 	@echo "$(CYAN)🧹 Cleaning...$(NC)"

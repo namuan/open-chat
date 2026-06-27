@@ -24,10 +24,15 @@
 		B00000000000000000000010 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000010 /* SettingsView.swift */; };
 		B00000000000000000000011 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000011 /* MarkdownView.swift */; };
 		B00000000000000000000012 /* ChatDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000012 /* ChatDataStore.swift */; };
+		T000000000000000000000014 /* ChatViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T000000000000000000000010 /* ChatViewModelTests.swift */; };
+		T000000000000000000000015 /* SettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T000000000000000000000011 /* SettingsViewModelTests.swift */; };
+		T000000000000000000000016 /* ModelFetchServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T000000000000000000000012 /* ModelFetchServiceTests.swift */; };
+		T000000000000000000000017 /* AIServiceProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T000000000000000000000013 /* AIServiceProtocolTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A0000000000000000000000D /* open-chat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "open-chat.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		T000000000000000000000002 /* open-chatTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "open-chatTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F00000000000000000000001 /* OpenChatApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenChatApp.swift; sourceTree = "<group>"; };
 		F00000000000000000000002 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
 		F00000000000000000000003 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
@@ -46,10 +51,21 @@
 		F00000000000000000000011 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		F00000000000000000000012 /* ChatDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDataStore.swift; sourceTree = "<group>"; };
 		F00000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		T000000000000000000000010 /* ChatViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelTests.swift; sourceTree = "<group>"; };
+		T000000000000000000000011 /* SettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModelTests.swift; sourceTree = "<group>"; };
+		T000000000000000000000012 /* ModelFetchServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelFetchServiceTests.swift; sourceTree = "<group>"; };
+		T000000000000000000000013 /* AIServiceProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIServiceProtocolTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A00000000000000000000010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		T000000000000000000000004 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -64,6 +80,7 @@
 			children = (
 				A00000000000000000000003 /* Sources */,
 				A0000000000000000000000B /* Resources */,
+				T000000000000000000000007 /* Tests */,
 				A00000000000000000000004 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -156,6 +173,33 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		T000000000000000000000007 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				T000000000000000000000008 /* ViewModels */,
+				T000000000000000000000009 /* Services */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		T000000000000000000000008 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				T000000000000000000000010 /* ChatViewModelTests.swift */,
+				T000000000000000000000011 /* SettingsViewModelTests.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		T000000000000000000000009 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				T000000000000000000000012 /* ModelFetchServiceTests.swift */,
+				T000000000000000000000013 /* AIServiceProtocolTests.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -176,6 +220,23 @@
 			productReference = A0000000000000000000000D /* open-chat.app */;
 			productType = "com.apple.product-type.application";
 		};
+		T3EE1C46A6BB84BD7A5289EB /* open-chatTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = T8817F51F0D3644CB9E5C4AD /* Build configuration list for PBXNativeTarget "open-chatTests" */;
+			buildPhases = (
+				T96C47C167B1041C19ABAFA8 /* Sources */,
+				T000000000000000000000004 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "open-chatTests";
+			productName = "open-chatTests";
+			productReference = T000000000000000000000002 /* open-chatTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -188,6 +249,10 @@
 				TargetAttributes = {
 					A0000000000000000000000C = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					T3EE1C46A6BB84BD7A5289EB = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = A0000000000000000000000C;
 					};
 				};
 			};
@@ -205,6 +270,7 @@
 			projectRoot = "";
 			targets = (
 				A0000000000000000000000C /* open-chat */,
+				T3EE1C46A6BB84BD7A5289EB /* open-chatTests */,
 			);
 		};
 /* End PBXProject section */
@@ -428,5 +494,29 @@
 		};
 /* End XCConfigurationList section */
 	};
+		T5F9480BCFFB74153AF02465 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.namuan.openchat.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/open-chat.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/open-chat";
+			};
+			name = Debug;
+		};
+		T8817F51F0D3644CB9E5C4AD /* Build configuration list for PBXNativeTarget "open-chatTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				T5F9480BCFFB74153AF02465 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+
 	rootObject = A00000000000000000000001 /* Project object */;
 }

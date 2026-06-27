@@ -5,17 +5,10 @@ struct ConversationsListView: View {
     var chatViewModel: ChatViewModel
 
     @State private var showingSettings = false
+    @State private var selectedConversationID: UUID?
 
     var body: some View {
-        List(selection: Binding<UUID?>(
-            get: { chatViewModel.selectedConversation?.id },
-            set: { newID in
-                if let id = newID {
-                    let conversation = conversationsViewModel.conversations.first { $0.id == id }
-                    chatViewModel.selectConversation(conversation)
-                }
-            }
-        )) {
+        List(selection: $selectedConversationID) {
             Section {
                 // Search
                 HStack {
@@ -48,11 +41,8 @@ struct ConversationsListView: View {
                         .listRowBackground(Color.clear)
                 } else {
                     ForEach(conversationsViewModel.filteredConversations) { conversation in
-                        ConversationRow(
-                            conversation: conversation,
-                            isSelected: chatViewModel.selectedConversation?.id == conversation.id
-                        )
-                        .tag(conversation.id)
+                        ConversationRow(conversation: conversation)
+                            .tag(conversation.id)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 conversationsViewModel.deleteConversation(conversation)
@@ -81,6 +71,24 @@ struct ConversationsListView: View {
                 SettingsView()
             }
         }
+        .onChange(of: selectedConversationID) { _, newID in
+            guard let id = newID else {
+                chatViewModel.selectConversation(nil)
+                return
+            }
+            // If the conversation isn't in the sidebar list yet (e.g. a
+            // brand-new chat that hasn't been persisted), don't clear the
+            // selection — the ViewModel already holds the right reference.
+            guard let conversation = conversationsViewModel.conversations.first(where: { $0.id == id }) else {
+                return
+            }
+            chatViewModel.selectConversation(conversation)
+        }
+        .onChange(of: chatViewModel.selectedConversation) { _, _ in
+            // Sync the List selection highlight with the ViewModel.
+            // (e.g. when newConversation() creates and selects a chat)
+            selectedConversationID = chatViewModel.selectedConversation?.id
+        }
     }
 }
 
@@ -88,7 +96,6 @@ struct ConversationsListView: View {
 
 struct ConversationRow: View {
     let conversation: Conversation
-    let isSelected: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -100,10 +107,6 @@ struct ConversationRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-
-            Text(conversation.updatedAt, style: .relative)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
     }
