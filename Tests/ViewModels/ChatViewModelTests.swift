@@ -177,4 +177,92 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.streamingContent, "Hello",
             "streamingContent cleared on re-entry — next chunk overwrites saved message")
     }
+
+    // MARK: - Message queue
+
+    func testQueueMessageWhileStreaming() async throws {
+        // Set up a conversation with a valid key
+        let ctx = container.mainContext
+        let conv = Conversation(title: "Test")
+        ctx.insert(conv)
+        try ctx.save()
+        viewModel.selectConversation(conv)
+
+        // Start streaming
+        mockService.chunksToYield = ["Hello"]
+        viewModel.inputText = "First"
+        await viewModel.sendMessage()
+        // Streaming should be in progress (mock finishes fast, but isLoading
+        // is already false because the mock completed synchronously)
+        // Let's simulate queuing while streaming
+        viewModel.isLoading = true
+        viewModel.inputText = "Queued message"
+        await viewModel.sendMessage()
+        // Should not have started sending — just queued
+        XCTAssertTrue(viewModel.hasQueuedMessages)
+        XCTAssertEqual(mockService.callCount, 1, "Second message should be queued, not sent")
+    }
+
+    func testQueueDrainsAfterStreamCompletes() async throws {
+        let ctx = container.mainContext
+        let conv = Conversation(title: "Test")
+        ctx.insert(conv)
+        try ctx.save()
+        viewModel.selectConversation(conv)
+
+        // Queue a message while "streaming"
+        viewModel.inputText = "Queued"
+        viewModel.isLoading = true
+        await viewModel.sendMessage()
+        XCTAssertTrue(viewModel.hasQueuedMessages)
+
+        // Simulate stream completing — stopStreaming triggers drainQueue
+        mockService.chunksToYield = ["Response"]
+        viewModel.stopStreaming()
+        // Drain runs in a detached Task — give it time
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertFalse(viewModel.hasQueuedMessages, "Queue should be empty after drain")
+        XCTAssertGreaterThan(mockService.callCount, 0, "Queued message should have been sent")
+    }
+
+    func testMultipleQueuedMessages() async throws {
+        let ctx = container.mainContext
+        let conv = Conversation(title: "Test")
+        ctx.insert(conv)
+        try ctx.save()
+        viewModel.selectConversation(conv)
+        viewModel.isLoading = true
+
+        // Queue 3 messages
+        for i in 1...3 {
+            viewModel.inputText = "Msg \(i)"
+            await viewModel.sendMessage()
+        }
+        XCTAssertTrue(viewModel.hasQueuedMessages)
+        // Not sent yet (isLoading is true)
+        XCTAssertEqual(mockService.callCount, 0)
+    }
+
+    func testQueueSurvivesConversationSwitch() async throws {
+        let ctx = container.mainContext
+        let convA = Conversation(title: "A")
+        let convB = Conversation(title: "B")
+        ctx.insert(convA)
+        ctx.insert(convB)
+        try ctx.save()
+
+        viewModel.selectConversation(convA)
+        viewModel.isLoading = true
+        viewModel.inputText = "Queued in A"
+        await viewModel.sendMessage()
+        XCTAssertTrue(viewModel.hasQueuedMessages)
+
+        // Switch away
+        viewModel.selectConversation(convB)
+        XCTAssertFalse(viewModel.hasQueuedMessages, "Queue should not follow to conversation B")
+
+        // Switch back
+        viewModel.selectConversation(convA)
+        XCTAssertTrue(viewModel.hasQueuedMessages, "Queue should be restored for conversation A")
+    }
 }

@@ -64,6 +64,14 @@ struct ChatView: View {
                 }
             }
 
+            // Queued messages bar
+            if viewModel.hasQueuedMessages {
+                QueuedMessagesBar(
+                    items: viewModel.queuedMessagePreviews,
+                    onCancel: { viewModel.cancelQueuedMessage($0) }
+                )
+            }
+
             // Input bar
             ChatInputBar(
                 text: $viewModel.inputText,
@@ -126,18 +134,17 @@ struct ChatInputBar: View {
                             .foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
-                } else {
-                    Button(action: onSend) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(
-                                text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                    ? Color.secondary : Color.blue
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+                Button(action: onSend) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(
+                            text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                ? Color.secondary : Color.blue
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -170,6 +177,44 @@ struct ErrorBanner: View {
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color.red.opacity(0.1))
         )
+    }
+}
+
+// MARK: - Queued Messages Bar
+
+/// A compact bar showing queued messages waiting to be sent after
+/// the current stream finishes.  Each item can be cancelled individually.
+struct QueuedMessagesBar: View {
+    let items: [(id: UUID, text: String)]
+    let onCancel: (UUID) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            ForEach(items, id: \.id) { item in
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                    Text(item.text)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Spacer()
+                    Button {
+                        onCancel(item.id)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                Divider()
+            }
+        }
+        .background(.bar)
     }
 }
 

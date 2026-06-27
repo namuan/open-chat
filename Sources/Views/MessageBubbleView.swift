@@ -4,17 +4,20 @@ struct MessageBubbleView: View {
     let role: MessageRole
     let content: String
     var isStreaming: Bool
+    var isQueued: Bool
 
-    init(message: Message, isStreaming: Bool = false) {
+    init(message: Message, isStreaming: Bool = false, isQueued: Bool = false) {
         self.role = message.role
         self.content = message.content
         self.isStreaming = isStreaming
+        self.isQueued = isQueued
     }
 
-    init(role: MessageRole, content: String, isStreaming: Bool = false) {
+    init(role: MessageRole, content: String, isStreaming: Bool = false, isQueued: Bool = false) {
         self.role = role
         self.content = content
         self.isStreaming = isStreaming
+        self.isQueued = isQueued
     }
 
     private var isUser: Bool { role == .user }
@@ -22,16 +25,21 @@ struct MessageBubbleView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             if !isUser {
-                // Assistant avatar
                 AvatarView(role: role)
             }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
                 // Role label
-                Text(isUser ? "You" : role.displayName)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
+                HStack(spacing: 4) {
+                    Text(isUser ? (isQueued ? "Sending…" : "You") : role.displayName)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if isQueued {
+                        ProgressView()
+                            .scaleEffect(0.5)
+                    }
+                }
+                .padding(.horizontal, 4)
 
                 // Message content with markdown
                 MarkdownContentView(content: content, isStreaming: isStreaming)
@@ -39,7 +47,7 @@ struct MessageBubbleView: View {
                     .padding(.vertical, 8)
                     .background(
                         isUser
-                            ? Color.blue.opacity(0.9)
+                            ? Color.blue.opacity(isQueued ? 0.4 : 0.9)
                             : Color(.systemGray5)
                     )
                     .foregroundStyle(isUser ? .white : .primary)
@@ -47,10 +55,11 @@ struct MessageBubbleView: View {
                     .textSelection(.enabled)
             }
             .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+            .opacity(isQueued ? 0.7 : 1.0)
 
             if isUser {
-                // User avatar
                 AvatarView(role: role)
+                    .opacity(isQueued ? 0.4 : 1.0)
             }
         }
     }

@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - ViewModel
+
 @MainActor
 @Observable
 final class ChatViewModel {
@@ -16,6 +18,10 @@ final class ChatViewModel {
     private var streamTask: Task<Void, Never>?
     private var conversationIsPersisted = false
 
+    // ---- Message queue ----
+    /// Queued message texts, keyed by conversation UUID. Survives navigation.
+    private var messageQueues: [UUID: [String]] = [:]
+
     init(settingsViewModel: SettingsViewModel? = nil) {
         // SettingsViewModel is injected after init from the environment in ContentView
         // because @Environment values aren't available inside init().
@@ -27,12 +33,14 @@ final class ChatViewModel {
     }
 
     func selectConversation(_ conversation: Conversation?) {
+        // Save the queue for the conversation we're leaving
+        if let oldID = selectedConversation?.id, !queuedItemIDs.isEmpty {
+            messageQueues[oldID] = queuedItemIDs.compactMap { queuedItemText(for: $0) }
+        }
+
         deleteEmptyPreviousConversation(whenSelecting: conversation)
 
         // NEVER clear streaming content while a stream is active.
-        // The async Task in sendMessage() is still accumulating tokens;
-        // clearing here would cause the next chunk to overwrite the
-        // saved assistant message with only the post-navigation text.
         if !isLoading {
             streamingContent = ""
         }
@@ -40,6 +48,13 @@ final class ChatViewModel {
         selectedConversation = conversation
         conversationIsPersisted = conversation != nil
         errorMessage = nil
+
+        // Restore the queue for the conversation we're entering
+        if let newID = conversation?.id, let texts = messageQueues[newID], !texts.isEmpty {
+            queuedItemIDs = texts.map { addQueuedItem(text: $0) }
+        } else {
+            queuedItemIDs = []
+        }
     }
 
     /// If the previous conversation was persisted but never got any
@@ -57,9 +72,6 @@ final class ChatViewModel {
         selectedConversation?.sortedMessages ?? []
     }
 
-    /// Messages to show in the chat view. During streaming, the in-progress
-    /// assistant message is shown separately as the streaming bubble, so we
-    /// exclude it here to avoid a double-render.
     var displayMessages: [Message] {
         let msgs = messages
         guard isLoading, let streamingID = streamingMessageID else { return msgs }
@@ -70,16 +82,69 @@ final class ChatViewModel {
         !messages.isEmpty
     }
 
+    // MARK: - Queue helpers
+
+    /// Ordered IDs of currently-visible queued items.
+    private var queuedItemIDs: [UUID] = []
+    /// Maps queued-item ID → text.
+    private var queuedItemTexts: [UUID: String] = [:]
+
+    var hasQueuedMessages: Bool { !queuedItemIDs.isEmpty }
+
+    /// Ordered texts of currently queued messages (read-only for the UI).
+    var queuedMessagePreviews: [(id: UUID, text: String)] {
+        queuedItemIDs.compactMap { id in
+            queuedItemTexts[id].map { (id, $0) }
+        }
+    }
+
+    func cancelQueuedMessage(_ id: UUID) {
+        removeQueuedItem(id)
+    }
+
+    private func addQueuedItem(text: String) -> UUID {
+        let id = UUID()
+        queuedItemTexts[id] = text
+        queuedItemIDs.append(id)
+        return id
+    }
+
+    private func removeQueuedItem(_ id: UUID) {
+        queuedItemIDs.removeAll { $0 == id }
+        queuedItemTexts.removeValue(forKey: id)
+    }
+
+    private func queuedItemText(for id: UUID) -> String? {
+        queuedItemTexts[id]
+    }
+
     func sendMessage() async {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isLoading else { return }
-
+        guard !text.isEmpty else { return }
         inputText = ""
+
+        // If a stream is already in progress, queue this message to be
+        // sent automatically once the current stream finishes.
+        if isLoading {
+            _ = addQueuedItem(text: text)
+            return
+        }
+
         errorMessage = nil
         isLoading = true
         streamingContent = ""
 
-        // Validate API key up front with a clear, actionable error
+        await sendNow(text: text)
+
+        // Stream finished — drain the queue.
+        if hasQueuedMessages {
+            await drainQueue()
+        }
+    }
+
+    /// Actually sends `text` to the LLM. Extracted so the queue can
+    /// call it without going through the guard / queue logic again.
+    private func sendNow(text: String) async {
         let provider = settingsViewModel.activeProvider
         let config = settingsViewModel.config(for: provider)
         if config.apiKey.isEmpty {
@@ -174,6 +239,26 @@ final class ChatViewModel {
         streamTask?.cancel()
         streamTask = nil
         isLoading = false
+        // If there are queued messages, drain them now
+        if hasQueuedMessages {
+            Task { await drainQueue() }
+        }
+    }
+
+    // MARK: - Queue draining
+
+    /// Pops and sends queued messages one by one. Stops if a message fails.
+    private func drainQueue() async {
+        while hasQueuedMessages, !isLoading {
+            guard let id = queuedItemIDs.first,
+                  let text = queuedItemText(for: id) else { break }
+            removeQueuedItem(id)
+            isLoading = true
+            streamingContent = ""
+            await sendNow(text: text)
+            // If sendNow left an error, stop draining so the user can see it
+            if errorMessage != nil { break }
+        }
     }
 
     func deleteConversation(_ conversation: Conversation) {
