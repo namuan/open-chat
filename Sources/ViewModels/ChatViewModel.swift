@@ -12,6 +12,7 @@ final class ChatViewModel {
     var streamingMessageID: UUID?       // ID of the assistant msg being streamed
     var errorMessage: String?
     var selectedConversation: Conversation?
+    var focusRequestCount: Int = 0
 
     private var modelContext: ModelContext?
     var settingsViewModel: SettingsViewModel
@@ -54,6 +55,11 @@ final class ChatViewModel {
             queuedItemIDs = texts.map { addQueuedItem(text: $0) }
         } else {
             queuedItemIDs = []
+        }
+
+        // Request focus when entering a conversation
+        if conversation != nil {
+            focusRequestCount += 1
         }
     }
 
@@ -123,6 +129,10 @@ final class ChatViewModel {
         guard !text.isEmpty else { return }
         inputText = ""
 
+        // Immediately request focus back so the keyboard stays up
+        // and the user can queue follow-up messages while streaming.
+        focusRequestCount += 1
+
         // If a stream is already in progress, queue this message to be
         // sent automatically once the current stream finishes.
         if isLoading {
@@ -140,6 +150,9 @@ final class ChatViewModel {
         if hasQueuedMessages {
             await drainQueue()
         }
+
+        // Request focus again after stream completes in case it was lost
+        focusRequestCount += 1
     }
 
     /// Actually sends `text` to the LLM. Extracted so the queue can
@@ -289,6 +302,9 @@ final class ChatViewModel {
         conversationIsPersisted = false
         let newConv = Conversation(title: "New Chat")
         selectedConversation = newConv
+
+        // Request focus for the new conversation
+        focusRequestCount += 1
     }
 
     private func buildChatMessages(for conversation: Conversation) -> [ChatMessage] {

@@ -94,6 +94,9 @@ struct ChatView: View {
                 }
             }
         }
+        .onChange(of: viewModel.focusRequestCount) { _, _ in
+            isInputFocused = true
+        }
         .onAppear { isInputFocused = true }
     }
 }

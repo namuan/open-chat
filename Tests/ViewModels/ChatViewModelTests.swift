@@ -265,4 +265,42 @@ final class ChatViewModelTests: XCTestCase {
         viewModel.selectConversation(convA)
         XCTAssertTrue(viewModel.hasQueuedMessages, "Queue should be restored for conversation A")
     }
+
+    // MARK: - Focus Request
+
+    func testSelectConversationRequestsFocus() {
+        let conv = Conversation(title: "Test")
+        let initialFocusCount = viewModel.focusRequestCount
+        viewModel.selectConversation(conv)
+        XCTAssertGreaterThan(
+            viewModel.focusRequestCount, initialFocusCount,
+            "selectConversation should increment focusRequestCount"
+        )
+    }
+
+    func testNewConversationRequestsFocus() {
+        viewModel.newConversation()
+        XCTAssertGreaterThan(
+            viewModel.focusRequestCount, 0,
+            "newConversation should increment focusRequestCount"
+        )
+    }
+
+    func testSendMessageRequestsFocus() async throws {
+        let ctx = container.mainContext
+        let conv = Conversation(title: "Test")
+        ctx.insert(conv)
+        try ctx.save()
+        viewModel.selectConversation(conv)
+        let focusCountBefore = viewModel.focusRequestCount
+
+        mockService.chunksToYield = ["Hello"]
+        viewModel.inputText = "Hi"
+        await viewModel.sendMessage()
+
+        XCTAssertGreaterThan(
+            viewModel.focusRequestCount, focusCountBefore,
+            "sendMessage should increment focusRequestCount after completion"
+        )
+    }
 }
