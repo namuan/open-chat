@@ -3,7 +3,6 @@ import SwiftData
 
 struct ChatView: View {
     @Bindable var viewModel: ChatViewModel
-    @State private var scrollProxy: ScrollViewProxy?
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
@@ -11,7 +10,7 @@ struct ChatView: View {
             // Message list
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    VStack(spacing: 12) {
                         ForEach(viewModel.displayMessages) { message in
                             MessageBubbleView(message: message)
                         }
@@ -53,8 +52,15 @@ struct ChatView: View {
                     .padding(.vertical, 8)
                 }
                 .defaultScrollAnchor(.bottom)
-                .onAppear {
-                    scrollProxy = proxy
+                .task {
+                    // Let the VStack lay out its content, then scroll to
+                    // bottom so the user sees the latest messages immediately.
+                    try? await Task.sleep(for: .milliseconds(100))
+                    proxy.scrollTo("bottom", anchor: .bottom)
+                }
+                .onChange(of: viewModel.streamingContent) { _, _ in
+                    // Keep scrolling down as new tokens arrive
+                    proxy.scrollTo("bottom", anchor: .bottom)
                 }
             }
 
