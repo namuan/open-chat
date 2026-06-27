@@ -8,6 +8,7 @@
 TEAM_ID   ?=
 DEVICE_ID ?=
 BUNDLE_ID ?= com.namuan.openchat.app
+XCCONFIG  ?= Local.xcconfig
 
 # ── Project constants ──────────────────────────────────────────
 
@@ -20,19 +21,20 @@ DERIVED_DATA := build/DerivedData
 APP          := $(DERIVED_DATA)/Build/Products/Release-iphoneos/$(SCHEME).app
 SIM_APP      := $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/$(SCHEME).app
 
+# ── Read config from xcconfig file ────────────────────────────
+
+_XCCONFIG_TEAM = $(shell grep '^DEVELOPMENT_TEAM' $(XCCONFIG) 2>/dev/null | sed 's/.*= *//')
+
 # ── Auto-detection (runs each `make` invocation) ───────────────
 
-_AUTO_TEAM  = $(shell security find-identity -v -p codesigning 2>/dev/null | \
-                grep "Apple Development" | head -1 | \
-                sed -E 's/.*\(([A-Z0-9]{10,})\).*/\1/')
-_AUTO_DEV   = $(shell xcrun devicectl list devices 2>/dev/null | \
+_AUTO_DEV  = $(shell xcrun devicectl list devices 2>/dev/null | \
                 grep -o '[0-9A-F]\{8\}-[0-9A-F]\{4\}-[0-9A-F]\{4\}-[0-9A-F]\{4\}-[0-9A-F]\{12\}' | head -1)
-_AUTO_NAME  = $(shell xcrun devicectl list devices 2>/dev/null | \
+_AUTO_NAME = $(shell xcrun devicectl list devices 2>/dev/null | \
                 grep -A1 'Name' | tail -1 | sed 's/^[[:space:]]*//' | sed 's/ .*//')
 
-# Resolved values (user override > auto-detect)
-_TEAM  = $(or $(TEAM_ID),$(_AUTO_TEAM))
-_DEV   = $(or $(DEVICE_ID),$(_AUTO_DEV))
+# Resolved values: env var > xcconfig > auto-detect
+_TEAM = $(or $(TEAM_ID),$(_XCCONFIG_TEAM))
+_DEV  = $(or $(DEVICE_ID),$(_AUTO_DEV))
 
 # ── Colours ────────────────────────────────────────────────────
 
@@ -72,12 +74,13 @@ help: ## Show this help
 .PHONY: setup
 setup: ## Show detected config and how to override
 	@echo "$(BOLD)Current Configuration$(NC)"
-	@echo "  Team ID    : $(_TEAM)   $(if $(_TEAM),$(CHECK) auto-detected,$(CROSS) not found)"
+	@echo "  Team ID    : $(_TEAM)   $(if $(_TEAM),$(CHECK) from xcconfig,$(CROSS) not found in $(XCCONFIG))"
 	@echo "  Device     : $(_DEV)   $(if $(_DEV),$(CHECK) auto-detected,$(CROSS) not found)"
 	@echo "  Bundle ID  : $(BUNDLE_ID)"
+	@echo "  xcconfig   : $(XCCONFIG)"
 	@echo ""
-	@echo "Override:   TEAM_ID=XXX DEVICE_ID=XXX make run"
-	@echo "Persist:    export TEAM_ID=XXX"
+	@echo "Edit $(XCCONFIG) to set your team ID, or override:"
+	@echo "  TEAM_ID=XXX make run"
 
 .PHONY: doctor
 doctor: ## Check all prerequisites for CLI build
@@ -87,34 +90,10 @@ doctor: ## Check all prerequisites for CLI build
 	@[ -d "$(PROJECT)" ] && echo "  $(CHECK) Xcode project" || echo "  $(CROSS) Missing $(PROJECT)"
 	@echo ""
 	@echo "$(BOLD)Signing$(NC)"
-	@# Check if Xcode has accounts configured
-	@ACCOUNTS=$$(defaults read com.apple.dt.Xcode DVTDeveloperAccountManager_Accounts 2>/dev/null | grep -c "dvtDeviceAccountIsEnabled" 2>/dev/null || true); \
-	if [ -n "$$ACCOUNTS" ] && [ "$$ACCOUNTS" -gt 0 ] 2>/dev/null; then \
-		echo "  $(CHECK) Xcode Apple ID account(s) found"; \
-	else \
-		echo "  $(CROSS) No Apple ID in Xcode — run: make signin"; \
-	fi
-	@# Check signing identity
-	@CERT=$$(security find-identity -v -p codesigning 2>/dev/null | grep "Apple Development"); \
-	if [ -n "$$CERT" ]; then \
-		EXPIRY=$$(security find-certificate -c "Apple Development" -p 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2); \
-		EXP_TS=$$(date -jf "%b %d %T %Y %Z" "$$EXPIRY" +%s 2>/dev/null); \
-		NOW=$$(date +%s); \
-		if [ "$$EXP_TS" -gt "$$NOW" ]; then \
-			echo "  $(CHECK) Certificate valid until $$EXPIRY"; \
-		else \
-			echo "  $(CROSS) Certificate EXPIRED ($$EXPIRY) — run: make signin"; \
-		fi; \
-	else \
-		echo "  $(CROSS) No signing certificate — run: make signin"; \
-	fi
-	@# Check provisioning profiles
-	@PROFILES=$$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | wc -l | tr -d ' '); \
-	if [ "$$PROFILES" -gt 0 ]; then \
-		echo "  $(CHECK) Provisioning profiles: $$PROFILES"; \
-	else \
-		echo "  $(YELLOW)  ⚠ No provisioning profiles (created on first build)$(NC)"; \
-	fi
+	@[ -f "$(XCCONFIG)" ] && echo "  $(CHECK) $(XCCONFIG) found" || \
+		echo "  $(CROSS) $(XCCONFIG) missing — create it with: echo 'DEVELOPMENT_TEAM = YOUR_TEAM_ID' > $(XCCONFIG)"
+	@[ -n "$(_TEAM)" ] && echo "  $(CHECK) Team ID: $(_TEAM)" || \
+		echo "  $(CROSS) No DEVELOPMENT_TEAM in $(XCCONFIG)"
 	@echo ""
 	@echo "$(BOLD)Device$(NC)"
 	@[ -n "$(_DEV)" ] && echo "  $(CHECK) Device connected: $(_DEV)" \
@@ -149,11 +128,12 @@ device: ## Show connected device details
 	@xcrun devicectl list devices 2>/dev/null | head -20 || echo "$(CROSS) No devices found"
 
 .PHONY: team
-team: ## Show detected signing identity details
+team: ## Show configured team ID
+	@echo "Source: $(if $(TEAM_ID),'env var override','$(XCCONFIG)')"
 	@echo "Team ID: $(_TEAM)"
 	@echo ""
 	@security find-identity -v -p codesigning 2>/dev/null | grep "Apple Development" || \
-		echo "$(CROSS) No Apple Development identity — run: make signin"
+		echo "$(CROSS) No Apple Development identity in keychain"
 	@echo ""
 	@CERT=$$(security find-certificate -c "Apple Development" -p 2>/dev/null); \
 	if [ -n "$$CERT" ]; then \
@@ -313,13 +293,15 @@ ipa: _guard-team build ## Export .ipa for sideloading
 _guard-team:
 	@if [ -z "$(_TEAM)" ]; then \
 		echo "$(RED)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
-		echo "$(RED)  No Apple Development signing identity$(NC)"; \
+		echo "$(RED)  No DEVELOPMENT_TEAM found$(NC)"; \
 		echo "$(RED)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
 		echo ""; \
-		echo "  One-time setup required:"; \
-		echo "    make signin"; \
+		echo "  Add your team ID to $(XCCONFIG):"; \
 		echo ""; \
-		echo "  Or manually: open Xcode > Settings > Accounts > +"; \
+		echo "    echo 'DEVELOPMENT_TEAM = Z8242PZ338' > $(XCCONFIG)"; \
+		echo ""; \
+		echo "  Or pass it inline:"; \
+		echo "    TEAM_ID=Z8242PZ338 make run"; \
 		exit 1; \
 	fi
 

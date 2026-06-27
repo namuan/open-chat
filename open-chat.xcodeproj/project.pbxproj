@@ -36,6 +36,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		F7505C88564AA49BCAEAB1B0 /* OpenChatApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenChatApp.swift; sourceTree = "<group>"; };
 		FB1735EE147194105ACA1D75 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		F689A98B637C844BCA041E60 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
@@ -85,10 +86,11 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A6F52DB1D233E4137969DA0F = {
-			isa = PBXGroup;
-			children = (
-				A275EEF01BCA64ECE82AF8B7 /* Sources */,
+	A6F52DB1D233E4137969DA0F = {
+		isa = PBXGroup;
+		children = (
+			A1B2C3D4E5F6A7B8C9D0E1F2 /* Local.xcconfig */,
+			A275EEF01BCA64ECE82AF8B7 /* Sources */,
 				A231EF20EBE884472B8FD91E /* Resources */,
 				T6831D3282A5F410987F3B46 /* Tests */,
 				ACAE1A9565A674831837ABD3 /* Products */,
@@ -400,10 +402,11 @@
 			};
 			name = Release;
 		};
-		A6F6FF814E2B9431AA22B1F9 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
+	A6F6FF814E2B9431AA22B1F9 /* Debug */ = {
+		isa = XCBuildConfiguration;
+		baseConfigurationReference = A1B2C3D4E5F6A7B8C9D0E1F2 /* Local.xcconfig */;
+		buildSettings = {
+			CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/Info.plist;
@@ -415,10 +418,11 @@
 			};
 			name = Debug;
 		};
-		A2FC6FC3038A14BF49D96CAD /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
+	A2FC6FC3038A14BF49D96CAD /* Release */ = {
+		isa = XCBuildConfiguration;
+		baseConfigurationReference = A1B2C3D4E5F6A7B8C9D0E1F2 /* Local.xcconfig */;
+		buildSettings = {
+			CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/Info.plist;
