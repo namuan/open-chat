@@ -162,4 +162,4 @@ open-chat/
 
 ## License
 
-MIT
+[MIT](LICENSE)
